@@ -6,7 +6,15 @@ use std::{
     time::Instant,
 };
 
-use aoc_2023_rust::{day01, Solver};
+use aoc_2023_rust::{
+    day01,
+    day02,
+    // day03,
+    // day04,
+    // day05,
+    // day06,
+    Solver,
+};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -102,7 +110,7 @@ fn run_solver(solver: Solver, input: &mut (impl BufRead + Seek), tries: u128) ->
 fn get_day(day: u8) -> &'static [Solver] {
     match day {
         1 => day01::SOLVERS,
-        // 2 => day02::SOLVERS,
+        2 => day02::SOLVERS,
         // 3 => day03::SOLVERS,
         // 4 => day04::SOLVERS,
         // 5 => day05::SOLVERS,
