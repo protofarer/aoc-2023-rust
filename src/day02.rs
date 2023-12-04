@@ -100,12 +100,9 @@ fn second(input: &mut dyn BufRead) -> String {
         // read each subset ?incrementally (faster) rather than all subsets at once
         let subsets = read_subsets(line);
 
-        // TODO store subset maxes for valid games
-        // TODO calc power and add to sum
         for subset in subsets {
             for color_entry in subset.trim().split(',') {
                 let values: Vec<&str> = color_entry.trim().split_whitespace().collect();
-                // println!("val1: {}  val2: {}", values[0], values[1]);
                 let count: u32 = values[0].parse().unwrap();
 
                 // ? CSDR instead break out of game block in any arm below when a bad max is read
