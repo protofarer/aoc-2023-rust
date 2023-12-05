@@ -111,7 +111,7 @@ fn get_day(day: u8) -> &'static [Solver] {
     match day {
         1 => day01::SOLVERS,
         2 => day02::SOLVERS,
-        // 3 => day03::SOLVERS,
+        3 => day03::SOLVERS,
         // 4 => day04::SOLVERS,
         // 5 => day05::SOLVERS,
         // 6 => day06::SOLVERS,
