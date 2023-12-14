@@ -10,3 +10,4 @@ clap = { version = "4.3.0", features = ["derive"] }
 prettytable-rs = "0.10.0"
 anyhow = "1.0.71"
 assert_fs = "1.0.13"
+rayon = "1.8.0"

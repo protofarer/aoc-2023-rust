@@ -28,7 +28,6 @@ fn count_winners(line: &str) -> usize {
 
 fn first(input: &mut dyn BufRead) -> String {
     let mut sum = 0;
-    println!("hello?",);
 
     for line in get_string_from_input(input).lines() {
         let count: usize = count_winners(line);
