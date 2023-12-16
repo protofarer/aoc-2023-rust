@@ -42,3 +42,4 @@ df day file:
 new-special day:
 	mkdir -p src/bin/{{day}}
 	cp -r template_special.rs src/bin/{{day}}/main.rs
+	sed -i 's|// INJECT_USE_DAY_MODULE|use aoc_2023_rust::day{{day}}::*;|' src/bin/{{day}}/main.rs

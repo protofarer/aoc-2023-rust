@@ -1,15 +1,16 @@
+#![allow(unused)]
+use aoc_2023_rust::day08::*;
 use aoc_2023_rust::special::parse_args_special;
+use std::io::BufRead;
 
-fn process_file(input_str: String) {
-    println!("processing file contents: {}", input_str);
-}
+fn run_with_input(input: &mut dyn BufRead) {}
 
-fn run() {
-    println!("RUN",);
+fn run_without_input() {
+    println!("run 08 w/o input",);
 }
 
 fn main() {
-    parse_args_special(run, process_file);
+    parse_args_special(run_without_input, run_with_input);
 }
 
 // fn second(input: &mut dyn BufRead) -> String {
@@ -68,4 +69,5 @@ fn main() {
 
 //     steps.to_string()
 //     // "".to_string()
+
 // }
