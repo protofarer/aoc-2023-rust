@@ -19,7 +19,7 @@ where
     Ok(lines)
 }
 
-pub fn _read_file_as_string(file_path: &str) -> Result<String, std::io::Error> {
+pub fn read_file_as_string(file_path: &str) -> Result<String, std::io::Error> {
     Ok(fs::read_to_string(file_path)?)
 }
 
@@ -54,5 +54,7 @@ pub mod day22;
 pub mod day23;
 pub mod day24;
 pub mod day25;
+
+pub mod special;
 
 pub type Solver = fn(&mut dyn BufRead) -> String;

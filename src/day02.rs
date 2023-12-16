@@ -15,7 +15,7 @@ fn first(input: &mut dyn BufRead) -> String {
     for line in get_string_from_input(input).lines() {
         // consume first 2 "words" "Game ID:" and store ID in var
         let id = read_id(line);
-        println!("=========== Game {} ============", id);
+        // println!("=========== Game {} ============", id);
 
         let mut game_maxes: (u32, u32, u32) = (0, 0, 0);
 

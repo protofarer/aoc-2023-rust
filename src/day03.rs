@@ -74,7 +74,7 @@ fn first(input: &mut dyn BufRead) -> String {
         }
         row += 1;
     }
-    println!("unique symbols: {:?}", unique_symbols);
+    // println!("unique symbols: {:?}", unique_symbols);
 
     // TODO Identify Part Numbers
     // - if any digit in a group is adjacent to a symbol, group is a part number
