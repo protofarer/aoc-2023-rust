@@ -2,20 +2,45 @@
 use crate::{get_string_from_input, Solver};
 use std::io::BufRead;
 
-// TODO instead of passing tuples around, make them Locations. Checks map bounds.
-// - add, subtract easily
-// TODO Pipes method returns opening loc deltas
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct Location(isize, isize);
 
-// Depending on where a pipe is entered determines where you can go next
+impl Location {
+    fn new(loc: (isize, isize)) -> Self {
+        Location(loc.0, loc.1)
+    }
+    pub fn x(&self) -> isize {
+        self.0
+    }
+    pub fn y(&self) -> isize {
+        self.1
+    }
+}
 
-#[derive(PartialEq, Debug)]
+impl std::ops::Add<Location> for Location {
+    type Output = Location;
+
+    fn add(self, other: Location) -> Location {
+        Location(self.0 + other.0, self.1 + other.1)
+    }
+}
+
+impl std::ops::Sub<Location> for Location {
+    type Output = Location;
+
+    fn sub(self, other: Location) -> Location {
+        Location(self.0 - other.0, self.1 - other.1)
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Tile {
     Pipe(Pipe),
     Ground,
     Start,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Pipe {
     NS,
     WE,
@@ -43,32 +68,49 @@ impl Opening {
         }
     }
 
-    fn d_exit(&self) -> (isize, isize) {
+    fn d_exit(&self) -> Location {
         match self {
-            Opening::N => (0, -1),
-            Opening::E => (1, 0),
-            Opening::S => (0, 1),
-            Opening::W => (-1, 0),
+            Opening::N => Location::new((0, -1)),
+            Opening::E => Location::new((1, 0)),
+            Opening::S => Location::new((0, 1)),
+            Opening::W => Location::new((-1, 0)),
         }
     }
 
-    fn d_enter(&self) -> (isize, isize) {
+    fn d_enter(&self) -> Location {
         match self {
-            Opening::N => (0, 1),
-            Opening::E => (-1, 0),
-            Opening::S => (0, -1),
-            Opening::W => (1, 0),
+            Opening::N => Location::new((0, 1)),
+            Opening::E => Location::new((-1, 0)),
+            Opening::S => Location::new((0, -1)),
+            Opening::W => Location::new((1, 0)),
         }
     }
 }
 
 impl Pipe {
-    fn d_exits(&self) -> Vec<(isize, isize)> {
+    pub fn d_exits(&self) -> Vec<Location> {
         let openings = self.openings();
         openings.iter().map(|o| o.d_exit()).collect()
     }
 
-    fn openings(&self) -> [Opening; 2] {
+    pub fn match_pipe_to_rel_locs(rel_locs: &Vec<Location>) -> Option<Pipe> {
+        if rel_locs.len() != 2 {
+            return None;
+        }
+        for pipe in Pipe::get_all_pipes() {
+            let d_exits = pipe.d_exits();
+            if d_exits.contains(&rel_locs[0]) && d_exits.contains(&rel_locs[1]) {
+                return Some(pipe);
+            }
+        }
+        None
+    }
+
+    pub fn get_all_pipes() -> Vec<Pipe> {
+        vec![Pipe::NS, Pipe::WE, Pipe::EN, Pipe::ES, Pipe::WN, Pipe::WS]
+    }
+
+    pub fn openings(&self) -> [Opening; 2] {
         match self {
             Pipe::NS => [Opening::N, Opening::S],
             Pipe::WE => [Opening::W, Opening::E],
@@ -78,13 +120,13 @@ impl Pipe {
             Pipe::WS => [Opening::W, Opening::S],
         }
     }
-    fn can_enter_from(&self, rel_enter_from: (isize, isize)) -> bool {
+    pub fn can_enter_from(&self, rel_enter_from: (isize, isize)) -> bool {
         // which opening does the enter_from move into for next pipe
         let opening = convert_exit_move_to_matching_entry_opening(rel_enter_from);
         self.openings().contains(&opening)
     }
 
-    fn get_exit_opening(&self, enter_from: Opening) -> Option<Opening> {
+    pub fn get_exit_opening(&self, enter_from: Opening) -> Option<Opening> {
         match self {
             Pipe::NS => match enter_from {
                 Opening::N => Some(Opening::S),
@@ -118,6 +160,29 @@ impl Pipe {
             },
         }
     }
+    pub fn print(&self) {
+        println!("{}", self.to_char());
+    }
+    pub fn to_string(&self) -> String {
+        match self {
+            Pipe::NS => String::from("|"),
+            Pipe::WE => String::from("-"),
+            Pipe::EN => String::from("L"),
+            Pipe::ES => String::from("F"),
+            Pipe::WN => String::from("J"),
+            Pipe::WS => String::from("7"),
+        }
+    }
+    pub fn to_char(&self) -> char {
+        match self {
+            Pipe::NS => '|',
+            Pipe::WE => '-',
+            Pipe::EN => 'L',
+            Pipe::ES => 'F',
+            Pipe::WN => 'J',
+            Pipe::WS => '7',
+        }
+    }
 }
 
 pub fn convert_exit_move_to_matching_entry_opening(rel_move: (isize, isize)) -> Opening {
@@ -135,44 +200,17 @@ pub fn validate_entry(rel_move: (isize, isize), pipe: &Pipe) -> bool {
     pipe.openings().contains(&entering_from)
 }
 
-pub struct Animal {
-    steps: usize,
-    location: (usize, usize),
-}
-
-impl Animal {
-    fn new(rel_move: (isize, isize), location: (usize, usize)) -> Self {
-        let entered_from = convert_exit_move_to_matching_entry_opening(rel_move);
-        Animal { steps: 1, location }
-    }
-    fn walk_rel(&mut self, rel_move: (isize, isize)) {
-        self.steps += 1;
-    }
-    fn entered_from(toward: Opening) -> Opening {
-        match toward {
-            Opening::N => Opening::S,
-            Opening::E => Opening::W,
-            Opening::S => Opening::N,
-            Opening::W => Opening::E,
-        }
-    }
-    fn steps(&self) -> usize {
-        self.steps
-    }
-}
-
 pub fn parse_tile_to_char(t: &Tile) -> char {
     match t {
         Tile::Ground => '.',
         Tile::Start => 'S',
-        Tile::Pipe(Pipe::NS) => '|',
-        Tile::Pipe(Pipe::WE) => '-',
-        Tile::Pipe(Pipe::EN) => 'L',
-        Tile::Pipe(Pipe::ES) => 'F',
-        Tile::Pipe(Pipe::WS) => '7',
-        Tile::Pipe(Pipe::WN) => 'J',
-        Tile::Pipe(Pipe::EN) => 'L',
-        _ => panic!("Illegal tile"),
+        Tile::Pipe(pipe) => pipe.to_char()
+        // Tile::Pipe(Pipe::NS) => '|',
+        // Tile::Pipe(Pipe::WE) => '-',
+        // Tile::Pipe(Pipe::EN) => 'L',
+        // Tile::Pipe(Pipe::ES) => 'F',
+        // Tile::Pipe(Pipe::WS) => '7',
+        // Tile::Pipe(Pipe::WN) => 'J',
     }
 }
 
@@ -186,12 +224,11 @@ pub fn parse_char_to_tile(c: char) -> Tile {
         'F' => Tile::Pipe(Pipe::ES),
         '7' => Tile::Pipe(Pipe::WS),
         'J' => Tile::Pipe(Pipe::WN),
-        'L' => Tile::Pipe(Pipe::EN),
         _ => panic!("Illegal tile char: {}", c),
     }
 }
 
-pub fn print_map(map: &Vec<Vec<Tile>>) {
+pub fn print_map(map: &Map) {
     for row in map {
         println!();
         for tile in row {
@@ -203,28 +240,55 @@ pub fn print_map(map: &Vec<Vec<Tile>>) {
 
 // use for checking all adjacent tiles, eg when standing on ground or start
 // and ignores non-pipe tiles
-pub fn get_valid_next_locs(
-    curr: (isize, isize),
-    prev: (isize, isize),
-    map: &Map,
-) -> Vec<(isize, isize)> {
+pub fn get_valid_next_locs(curr: Location, prev: Option<Location>, map: &Map) -> Vec<Location> {
     let mut valid_adjacent_locations = vec![];
-    println!("prev{:?}", prev);
 
     for (dx, dy) in [(0, 1), (1, 0), (0, -1), (-1, 0)].iter() {
         let x = curr.0 as isize + *dx;
         let y = curr.1 as isize + *dy;
         if x >= 0 && x < map[0].len() as isize && y >= 0 && y < map.len() as isize {
-            if (x, y) != (prev.0 as isize, prev.1 as isize) {
-                println!("pos{:?}", (x, y));
-                match &map[y as usize][x as usize] {
-                    Tile::Pipe(pipe) => {
+            match prev {
+                // validate all locs except prev_loc
+                Some(prev_loc) => {
+                    if (x, y) != (prev_loc.0 as isize, prev_loc.1 as isize) {
+                        // println!("pos{:?}", (x, y));
+                        // match &map[y as usize][x as usize] {
+                        //     Tile::Pipe(pipe) => {
+                        //         if validate_entry((*dx, *dy), pipe) {
+                        //             valid_adjacent_locations
+                        //                 .push(Location::new((x as isize, y as isize)));
+                        //             // rel_steps.push((*dx, *dy));
+                        //         }
+                        //     }
+                        //     _ => {}
+                        // }
+                        if let Tile::Pipe(pipe) = &map[y as usize][x as usize] {
+                            if validate_entry((*dx, *dy), pipe) {
+                                valid_adjacent_locations
+                                    .push(Location::new((x as isize, y as isize)));
+                                // rel_steps.push((*dx, *dy));
+                            }
+                        }
+                    }
+                }
+                // validate all surrounding locs
+                None => {
+                    // match &map[y as usize][x as usize] {
+                    //     Tile::Pipe(pipe) => {
+                    //         if validate_entry((*dx, *dy), pipe) {
+                    //             valid_adjacent_locations
+                    //                 .push(Location::new((x as isize, y as isize)));
+                    //             // rel_steps.push((*dx, *dy));
+                    //         }
+                    //     }
+                    //     _ => {}
+                    // }
+                    if let Tile::Pipe(pipe) = &map[y as usize][x as usize] {
                         if validate_entry((*dx, *dy), pipe) {
-                            valid_adjacent_locations.push((x as isize, y as isize));
+                            valid_adjacent_locations.push(Location::new((x as isize, y as isize)));
                             // rel_steps.push((*dx, *dy));
                         }
                     }
-                    _ => {}
                 }
             }
         }
@@ -234,19 +298,17 @@ pub fn get_valid_next_locs(
 
 type Map = Vec<Vec<Tile>>;
 
-// SOLN: 6,846 (fix initial non-loop step increment; use correct final return val)
-// 13,690 high (use much shorter impl, using filtering pipe exits where exit != prev_loc) OH used steps instead of longest_distance value
-pub fn first(input: &mut dyn BufRead) -> String {
-    // There is no possibility for dead ends because there is no branching
-    // Follow loop around and back to start, halve total steps and round up
+pub fn create_map(input: &mut dyn BufRead) -> (Map, Location) {
     let mut map: Map = vec![];
     let mut start = None;
+
     for (y, line) in get_string_from_input(input).lines().enumerate() {
         map.push(vec![]);
+
         for (x, c) in line.chars().enumerate() {
             let tile = parse_char_to_tile(c);
             if tile == Tile::Start {
-                start = Some((x as isize, y as isize));
+                start = Some(Location::new((x as isize, y as isize)));
             }
             map[y].push(tile);
         }
@@ -254,43 +316,69 @@ pub fn first(input: &mut dyn BufRead) -> String {
 
     let start = match start {
         None => panic!("No start tile found"),
-        Some(vals) => vals,
+        Some(loc) => loc,
     };
+    (map, start)
+}
+pub fn replace_start_tile_with_pipe(
+    start: &Location,
+    map: &mut Map,
+    rel_locs_adj_pipes: &Vec<Location>,
+) {
+    println!("rel pipe locs {:?}", rel_locs_adj_pipes);
+    let start_pipe = Pipe::match_pipe_to_rel_locs(rel_locs_adj_pipes).unwrap();
+    map[start.y() as usize][start.x() as usize] = Tile::Pipe(start_pipe);
+}
 
-    // print_map(&map);
+// SOLN: 6,846 (fix initial non-loop step increment; use correct final return val)
+// 13,690 high (use much shorter impl, using filtering pipe exits where exit != prev_loc) OH used steps instead of longest_distance value
+pub fn first(input: &mut dyn BufRead) -> String {
+    // There is no possibility for dead ends because there is no branching
+    // Follow loop around and back to start, halve total steps and round up
+    let (mut map, start) = create_map(input);
 
     let mut curr_loc = start;
-    println!(
-        "start_tile:{:?}",
-        &map[curr_loc.1 as usize][curr_loc.0 as usize]
-    );
+    // println!(
+    //     "start_tile:{:?}",
+    //     &map[curr_loc.1 as usize][curr_loc.0 as usize]
+    // );
     let mut prev_loc = curr_loc;
-    let next_locs = get_valid_next_locs((curr_loc.0, curr_loc.1), prev_loc, &map);
-    curr_loc = next_locs[0];
-    println!("chose{:?}", curr_loc);
-    println!(
-        "relmove{:?}",
-        (curr_loc.0 - prev_loc.0, curr_loc.1 - prev_loc.1)
-    );
+    let next_locs = get_valid_next_locs(curr_loc, None, &map);
 
-    let mut curr_tile = &map[curr_loc.1 as usize][curr_loc.0 as usize];
-    println!("{:?} {:?}", curr_loc, curr_tile);
-    println!("-----------------------",);
+    // Replace start tile with appropriate pipe to complete loop
+    // - find the pipe that matches the openings that would be situated at next_locs
+    let rel_locs_adj_pipes: Vec<Location> = next_locs.iter().map(|&loc| loc - curr_loc).collect();
+    replace_start_tile_with_pipe(&start, &mut map, &rel_locs_adj_pipes);
+    // print_map(&map);
+
+    curr_loc = next_locs[0];
+    // println!("chose{:?}", curr_loc);
+    // println!(
+    //     "relmove{:?}",
+    //     (curr_loc.0 - prev_loc.0, curr_loc.1 - prev_loc.1)
+    // );
+
+    let mut curr_tile;
+    // println!("{:?} {:?}", curr_loc, curr_tile);
+    // println!("-----------------------",);
     let mut steps = 1;
 
-    // |||
-    // JSL
-    // 7L7
-
     loop {
+        curr_tile = &map[curr_loc.1 as usize][curr_loc.0 as usize];
+
+        if curr_loc == start {
+            break;
+        }
+
         if let Tile::Pipe(pipe) = curr_tile {
-            let rel_move = *pipe
-                .d_exits()
+            let exits = pipe.d_exits();
+            let rel_move = exits
                 .iter()
-                .find(|&&loc| (curr_loc.0 + loc.0, curr_loc.1 + loc.1) != prev_loc)
+                .find(|&&loc| curr_loc + loc != prev_loc)
                 .unwrap();
             prev_loc = curr_loc;
-            curr_loc = (rel_move.0 + curr_loc.0, rel_move.1 + curr_loc.1);
+
+            curr_loc = *rel_move + curr_loc;
         }
 
         // println!("moveTo{:?} {:?}", curr_loc, curr_tile);
@@ -298,26 +386,209 @@ pub fn first(input: &mut dyn BufRead) -> String {
 
         // ... handle other Tiles
 
-        curr_tile = &map[curr_loc.1 as usize][curr_loc.0 as usize];
-
-        if *curr_tile == Tile::Start {
-            break;
-        }
-
         steps += 1;
     }
-    println!("steps: {}", steps);
-
+    //
     let longest_distance = (steps as f64 / 2.).ceil();
 
     longest_distance.to_string()
 }
 
-// SOLN:
-fn second(input: &mut dyn BufRead) -> String {
-    for line in get_string_from_input(input).lines() {}
+struct Collector {
+    n_locs: i32,
+    n_intersects: i32,
+}
 
-    "".to_string()
+impl Collector {
+    fn new() -> Self {
+        Collector {
+            n_locs: 0,
+            n_intersects: 0,
+        }
+    }
+}
+
+pub fn write_map_to_file(map: &Vec<Vec<Tile>>, file_path: &str) -> std::io::Result<()> {
+    use std::io::Write;
+
+    let mut file = std::fs::File::create(file_path)?;
+
+    for row in map {
+        for tile in row {
+            write!(file, "{}", parse_tile_to_char(tile))?;
+        }
+        writeln!(file)?;
+    }
+
+    Ok(())
+}
+
+// SOLN: 325 (replaced S with the fitting pipe!!!)
+// 6584 high
+// 12,317 high (after doing the collector and only collect upon intersection approach)
+// 3,975 high (after fixing bug where n_locs not being cleared for odd intersection)
+// 5,562 wrong (after overhaul to raycasting, using collectors and matching pipe entry/exits)
+// 2,727 wrong (fix incorrectly overcounting n_intersect == 0 groups)
+// 346 wrong (fix was counting even intersect groups (outside) instead of odds (inside))
+
+fn second(input: &mut dyn BufRead) -> String {
+    // use raycasting algo:
+    // 1. odd number of intersections from the point of analysis to edge of grid indicates inside loop
+    // 2. even number.. indicates outside of loop
+    // A: continuous intersections aka ray is parallel and intersecting a portion of the loop counts as 1 intersection
+    // B: loop "corners" are equivalent to the conditions described in A
+
+    let (mut map, start) = create_map(input);
+
+    // Bounds to limit ray casts
+    let width = map[0].len();
+    let height = map.len();
+
+    // Create the looping path
+    let mut path: Vec<Location> = vec![];
+
+    let mut curr_loc = start;
+    path.push(curr_loc);
+
+    let mut prev_loc = curr_loc;
+
+    let next_locs = get_valid_next_locs(curr_loc, None, &map);
+
+    let rel_locs_adj_pipes: Vec<Location> = next_locs.iter().map(|&loc| loc - curr_loc).collect();
+    replace_start_tile_with_pipe(&start, &mut map, &rel_locs_adj_pipes);
+    // print_map(&map);
+
+    // write_map_to_file(&map, "part10replacedstart.txt");
+
+    curr_loc = next_locs[0];
+    path.push(curr_loc);
+
+    let mut curr_tile;
+
+    loop {
+        curr_tile = &map[curr_loc.1 as usize][curr_loc.0 as usize];
+
+        if curr_loc == start {
+            break;
+        }
+
+        if let Tile::Pipe(pipe) = curr_tile {
+            let exits = pipe.d_exits();
+            let rel_move = exits
+                .iter()
+                .find(|&&loc| curr_loc + loc != prev_loc)
+                .unwrap();
+            prev_loc = curr_loc;
+            curr_loc = *rel_move + curr_loc;
+            path.push(curr_loc);
+        }
+    }
+
+    // do horizontal ray casts (easier to traverse within the vec of vecs map)
+    // collect points into 2 buckets: `locs_a`` and `locs_b`
+    // count number of intersections `n_intersects`
+    // locs_even for points where n_intersects so far is even
+    // locs_odd ... is odd
+    // ray cast ends when it reaches map boundary `width`
+    // use a flag `is_prev_loc_intersection` for determining "parallel intersections" which shouldn't be counted toward `n_intersects`
+
+    // If n_intersects is 0 all throughout (despite being even), points are outside
+    // - use a collector to catch n_locs until intersection occurs
+    // - if ray cast ends with no intersections, do not count collector
+    // - only count evens, and count using the collector when intersection occurs
+    // TODO am I handling the ambiguous intersection case, aka "corner intersection"?
+    // probably need to check where the path goes after a continuous/parallel intersection segment
+    // IOW, just because the loop was intersected by the ray doesn't mean the ray has entered or exited the loop interior
+    // refine algo by:
+    // - only operate on n_locs_even after the intersection is "resolved"
+    // - resolve an intersection by determining where the path goes:
+    //   - A. up or down (when non-path loc encountered, see if `x - 1` `y`
+    //   position of path crossed (valid piercing) or doubled back (non-piercing
+    //   thus not an meaningful intersection))
+    //    - B. width,
+    // TODO resolve edge cases on paper
+    // TODO CAPTURE PIPE TYPE during mapping: any vertical entries or exit types are important!
+
+    let mut n_locs_inside: i32 = 0;
+    for y in 0..height {
+        let mut entry_pipe: Option<Pipe> = None;
+        let mut collectors: Vec<Collector> = vec![Collector::new()];
+
+        for x in 0..width {
+            // encountered path, determine kind of intersection
+            if path.contains(&Location::new((x as isize, y as isize))) {
+                let tile = &map[y][x];
+
+                match &tile {
+                    &Tile::Pipe(pipe_variant) => {
+                        match pipe_variant {
+                            // entry, piercing intersection => store locs as group
+                            Pipe::NS => {
+                                // increment all n_intersects
+                                // start new group
+                                collectors.iter_mut().for_each(|c| c.n_intersects += 1);
+                                collectors.push(Collector::new());
+                            }
+
+                            // entry, parallel => save entry type (up/down), await exit
+                            // save entry per pipe type,
+                            // EN == entry from N
+                            // ES == entry from S
+                            Pipe::EN | Pipe::ES => {
+                                entry_pipe = Some(*pipe_variant);
+                            }
+
+                            // exit, piercing => exit opp entry, store locs
+                            // EN == exit from N, piercing if entry was WS
+                            // ES == exit from S, piercing if entry was WN
+                            Pipe::WN | Pipe::WS => {
+                                // test piercing and collect as appropo
+                                match entry_pipe {
+                                    Some(Pipe::EN) => {
+                                        if *pipe_variant == Pipe::WS {
+                                            collectors.iter_mut().for_each(|c| c.n_intersects += 1);
+                                            collectors.push(Collector::new());
+                                        }
+                                    }
+                                    Some(Pipe::ES) => {
+                                        if *pipe_variant == Pipe::WN {
+                                            collectors.iter_mut().for_each(|c| c.n_intersects += 1);
+                                            collectors.push(Collector::new());
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                                entry_pipe = None;
+                            }
+
+                            Pipe::WE => {
+                                // do nothing
+                            }
+                        }
+                    }
+                    _ => { /* path only contains pipes */ }
+                }
+            } else {
+                // get last item in collectors and increase n_locs
+                if let Some(last_collector) = collectors.last_mut() {
+                    last_collector.n_locs += 1;
+                }
+            }
+        }
+        // process collected locs
+        n_locs_inside += collectors
+            .iter()
+            .filter_map(|c| {
+                if c.n_intersects > 0 && c.n_intersects % 2 == 1 {
+                    Some(c.n_locs)
+                } else {
+                    None
+                }
+            })
+            .sum::<i32>();
+    }
+
+    n_locs_inside.to_string()
 }
 
 pub const SOLVERS: &[Solver] = &[first, second];
