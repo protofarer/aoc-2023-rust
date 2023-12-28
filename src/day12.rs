@@ -21,7 +21,7 @@ impl Status {
 
 pub struct Record {
     springs: Vec<Status>,
-    groups: Vec<i32>,
+    damaged_lengths: Vec<i32>,
 }
 
 impl Record {
@@ -40,8 +40,67 @@ impl Record {
             .map(|x| x.parse::<i32>().unwrap())
             .collect();
 
-        Self { springs, groups }
+        Self {
+            springs,
+            damaged_lengths: groups,
+        }
     }
+}
+
+pub fn branching_match(
+    damaged_lengths: Vec<i32>,
+    springs: Vec<Status>,
+    mut group_idx: usize,
+    mut acc: i32,
+) -> i32 {
+    for (spring_idx, spring) in springs.iter().enumerate() {
+        // println!("char:'{}'", spring.to_char());
+        match spring {
+            Status::Operational => {
+                // if some group has acc'ed, attempt to close it
+                // if acc and length dont match, return 0
+                if acc > 0 {
+                    group_idx += 1;
+                }
+                acc = 0;
+            }
+            Status::Damaged => {
+                // NO, found new damaged group after all record groups already matched
+                if group_idx == damaged_lengths.len() {
+                    return 0;
+                }
+                acc += 1;
+                // NO, more damaged in current group than specified in record
+                if acc > damaged_lengths[group_idx] {
+                    return 0;
+                }
+            }
+            Status::Unknown => {
+                let mut branched_with_operational = springs.clone();
+                branched_with_operational[spring_idx] = Status::Operational;
+
+                let mut branched_with_damaged = springs.clone();
+                branched_with_damaged[spring_idx] = Status::Damaged;
+
+                // println!("----------BRANCHING----------",);
+                return branching_match(
+                    damaged_lengths.clone(),
+                    branched_with_operational,
+                    group_idx,
+                    acc,
+                ) + branching_match(
+                    damaged_lengths.clone(),
+                    branched_with_damaged,
+                    group_idx,
+                    acc,
+                );
+            }
+        }
+        // println!("acc: {}  g_i: {}", acc, group_idx);
+    }
+
+    // reached EORow, if made it this far, good as an arrangement!
+    return 1;
 }
 
 // SOLN:
@@ -53,9 +112,11 @@ pub fn first(input: &mut dyn BufRead) -> String {
     }
 
     let mut sum_all_arrangements = 0;
-    for record in records {
-        let mut arrangements = 0;
-        let groups = record.groups;
+    // call a recursive fn on each record that allows for branching
+    // fn foo(acc, damaged_length, springs)
+    // the base case does the actual acc += 1
+    //
+    for (i, record) in records.iter().enumerate() {
         println!("============================",);
         println!(
             "{} {}",
@@ -64,7 +125,8 @@ pub fn first(input: &mut dyn BufRead) -> String {
                 .iter()
                 .map(|s| s.to_char().to_string())
                 .collect::<String>(),
-            groups
+            record
+                .damaged_lengths
                 .iter()
                 .map(|x| {
                     let mut s = x.to_string();
@@ -74,48 +136,13 @@ pub fn first(input: &mut dyn BufRead) -> String {
                 .collect::<String>(),
         );
 
-        let mut groups_idx = 0;
-        let mut acc = 0;
-        // TODO need to recurse upon '?'
-        for spring in &record.springs {
-            // skip across contiguous operationals
-            if *spring == Status::Operational {
-                continue;
-            }
-            // match group (len of damaged) to springs sequence
-            while acc < groups[groups_idx] {
-                match spring {
-                    Status::Operational => {
-                        continue;
-                    }
-                    Status::Damaged => {
-                        acc += 1;
-                    }
-                    Status::Unknown => {
-                        acc += 1;
-                    }
-                }
-            }
-            // TODO somewhere, once a group is matched, check for EORow or Operational separator
-            if acc < groups[groups_idx] {
-                println!(
-                    "no match for groups[{}]: {}",
-                    groups_idx, groups[groups_idx]
-                );
-            } else {
-                // ! wrong, arrangements not until EORow reached
-                arrangements += 1;
-            }
-
-            // setup for next group
-            groups_idx += 1;
-            if groups_idx == groups.len() {
-                break;
-            }
-            acc = 0;
-        }
+        let arrangements =
+            branching_match(record.damaged_lengths.clone(), record.springs.clone(), 0, 0);
         println!("=> {}", arrangements);
+
+        sum_all_arrangements += arrangements;
     }
+    println!("sum: {}", sum_all_arrangements);
 
     "".to_string()
 }
